@@ -1,33 +1,19 @@
-name: CI/CD Pipeline  
+name: Super-Linter
 
-on:  
-  push:  
-    branches:  
-      - main  # Trigger on push to the main branch  
-  pull_request:  
-    branches:  
-      - main  # Trigger on pull request to the main branch  
+on: push
 
-jobs:  
-  build:  
-    runs-on: ubuntu-latest  
+jobs: 
+  super-lint:
+    name: Lint code base
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        
+      - name: Run Super-Linter
+        uses: github/super-linter@v3
+        env:
+          DEFAULT_BRANCH: main
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    steps:  
-      - name: Check out code  
-        uses: actions/checkout@v2  
-
-      - name: Set up Node.js  
-        uses: actions/setup-node@v2  
-        with:  
-          node-version: '20'  # Specify your Node.js version  
-
-      - name: Install dependencies  
-        run: npm install  
-
-      - name: Run tests  
-        run: npm test  
-
-      - name: Deploy to production  
-        run: |  
-          echo "Deploying to production server"  
-          # Add your deployment commands here
