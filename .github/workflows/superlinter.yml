@@ -18,6 +18,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
         
+      - name: Display environment variables
+        run: printenv
+
+      - name: Verify repository token
+        run: echo $GITHUB_TOKEN | wc -c
+
       - name: Run Super-Linter
         uses: github/super-linter@v7
         env:
