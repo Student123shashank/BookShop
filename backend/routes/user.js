@@ -1,8 +1,38 @@
 const router = require("express").Router();
 const User = require("../models/user");
 const bcrypt = require("bcryptjs");
-const jwt= require("jsonwebtoken");
-const {authenticateToken}=require("./userAuth");
+const jwt = require("jsonwebtoken");
+const { authenticateToken } = require("./userAuth");
+
+const multer = require("multer");
+
+const storage = multer.diskStorage({
+    destination: "./uploads/", 
+    filename: (_, file, cb) => { 
+        cb(null, `${Date.now()}-${file.originalname}`);
+    },
+});
+
+const upload = multer({ storage });
+
+// Route to upload avatar
+router.post("/upload-avatar", upload.single("avatar"), async (req, res) => {
+    try {
+        const { id } = req.headers; 
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: "No file uploaded" });
+        }
+
+        const avatarUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+        await User.findByIdAndUpdate(id, { avatar: avatarUrl });
+
+        res.status(200).json({ success: true, avatarUrl });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal Server Error" });
+    }
+});
+
 router.post("/sign-up", async (req, res) => {
     try {
         const { username, email, password, address } = req.body;
@@ -17,12 +47,10 @@ router.post("/sign-up", async (req, res) => {
         if (existingEmail) {
             return res.status(400).json({ message: "Email  already exists" });
         }
-        if(password.length<=7){
-            return res
-            .status(400)
-            .json({message:"Password's length should be greater than 7"});
+        if (password.length <= 7) {
+            return res.status(400).json({ message: "Password's length should be greater than 7" });
         }
-        const hashPass= await bcrypt.hash(password,10);
+        const hashPass = await bcrypt.hash(password, 10);
         const newUser = new User({
             username: username,
             email: email,
@@ -44,16 +72,18 @@ router.post("/sign-in", async (req, res) => {
             return res.status(400).json({ message: "Invalid credentials" });
         }
         
-        await bcrypt.compare(password, existingUser.password, (err, data) => {
+        bcrypt.compare(password, existingUser.password, (err, data) => {
             if (data) {
-                const authClaims = [
-                    { name: existingUser.username}, 
-                    {role: existingUser.role },
-                ];
-                const token = jwt.sign({authClaims}, "Shashank@2024", {
-                     expiresIn: "60d",
-                     });
-                res.status(200).json({ id: existingUser._id, role: existingUser.role, token: token });                
+                const token = jwt.sign(
+                    {
+                        id: existingUser._id,
+                        username: existingUser.username,
+                        role: existingUser.role
+                    },
+                    "Shashank@2024",
+                    { expiresIn: "60d" }
+                );
+                res.status(200).json({ id: existingUser._id, role: existingUser.role, token: token });
             } else {
                 return res.status(400).json({ message: "Invalid credentials" });
             }
@@ -63,7 +93,7 @@ router.post("/sign-in", async (req, res) => {
     }
 });
 
-router.get("/get-user-information", authenticateToken, async (req, res) => {
+router.get("/get-user-information", async (req, res) => {
     try {
         const { id } = req.headers;
         const data = await User.findById(id).select('-password');
@@ -83,5 +113,77 @@ router.put("/update-address", authenticateToken, async (req, res) => {
         return res.status(500).json({ message: "Internal server error" });
     }
 });
+
+// Route to update username
+router.put("/update-username", authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.headers;
+        const { username } = req.body;
+        const existingUsername = await User.findOne({ username: username });
+        if (existingUsername) {
+            return res.status(400).json({ message: "Username already exists" });
+        }
+        await User.findByIdAndUpdate(id, { username: username });
+        return res.status(200).json({ message: "Username updated successfully" });
+    } catch (error) {
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// Route to update email
+router.put("/update-email", authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.headers;
+        const { email } = req.body;
+        const existingEmail = await User.findOne({ email: email });
+        if (existingEmail) {
+            return res.status(400).json({ message: "Email already exists" });
+        }
+        await User.findByIdAndUpdate(id, { email: email });
+        return res.status(200).json({ message: "Email updated successfully" });
+    } catch (error) {
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// Route to update password
+// Route to update password
+router.put("/update-password", authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.headers;
+        const { currentPassword, newPassword } = req.body;
+
+        // Validate inputs
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ message: "Both current and new passwords are required" });
+        }
+        if (newPassword.length <= 7) {
+            return res.status(400).json({ message: "New password must be at least 8 characters long" });
+        }
+
+        const user = await User.findById(id);
+
+        // Check if user exists
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Current password is incorrect" });
+        }
+
+        // Hash and save the new password
+        const hashPass = await bcrypt.hash(newPassword, 10);
+        await User.findByIdAndUpdate(id, { password: hashPass });
+
+        return res.status(200).json({ message: "Password updated successfully" });
+    } catch (error) {
+        console.error("Error updating password:", error); // Log the error for debugging
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
 
 module.exports = router;

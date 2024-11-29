@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const Book = require("../models/book");
 const { authenticateToken } = require("./userAuth");
 
-// Add book -- admin
+//add-books
 router.post("/add-books", authenticateToken, async (req, res) => {  
     try {  
       const { id } = req.headers;  
@@ -14,14 +14,14 @@ router.post("/add-books", authenticateToken, async (req, res) => {
         return res.status(400).json({ message: "You do not have access to perform admin work" });  
       }  
   
-      const books = req.body; // Assuming the request body contains an array of book objects  
+      const books = req.body; 
   
-      // Check if the request body is an array  
+      
       if (!Array.isArray(books)) {  
         return res.status(400).json({ message: "Request body must be an array of books" });  
       }  
   
-      // Create and save each book  
+      //save-books
       const savedBooks = await Promise.all(  
         books.map(async (book) => {  
           const newBook = new Book({  
@@ -81,6 +81,17 @@ router.delete("/delete-book", authenticateToken, async (req, res) => {
 });
 
 
+// Bulk delete books -- admin
+router.delete("/delete-all-books", authenticateToken, async (req, res) => {
+    try {
+        await Book.deleteMany({});
+        return res.status(200).json({ message: "All books deleted successfully!" });
+    } catch (error) {
+        return res.status(500).json({ message: "An error occurred", error });
+    }
+});
+
+
 
 // Get all books
 router.get("/get-all-books", async (req, res) => {
@@ -126,6 +137,37 @@ router.get("/get-book-by-id/:id", async (req, res) => {
         return res.status(500).json({ message: "An error occurred" });
     }
 });
+
+
+
+
+
+
+// Search books by title
+router.get("/search", async (req, res) => {
+    try {
+        const { query } = req.query;
+        if (!query) {
+            return res.status(400).json({ message: "Query is required" });
+        }
+
+        
+        const books = await Book.find({ title: { $regex: query, $options: "i" } });
+
+        
+        if (books.length === 0) {
+            return res.status(404).json({ message: "No books found" });
+        }
+
+        res.status(200).json({ status: "Success", books });
+    } catch (error) {
+        console.error("Error fetching books:", error); 
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+
+
 
 
 

@@ -39,24 +39,25 @@ router.post("/place-order", authenticateToken, async (req, res) => {
 
 //get order history of particular user
 router.get("/get-order-history", authenticateToken, async (req, res) => {
-    try {
-      const { id } = req.headers;
-      const userData = await User.findById(id).populate({
-        path: "orders",
-        populate: { path: "book" },
-      });
-      const ordersData = userData.orders.reverse();
-      return res.json({
-        status: "Success",
-        data: ordersData,
-      });
-    } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        message: "An error occurred",
-      });
-    }
-  });
+  try {
+    const { id } = req.headers;
+    const userData = await User.findById(id).populate({
+      path: "orders",
+      populate: { path: "book" }
+    });
+    const ordersData = userData.orders.reverse();
+    return res.json({
+      status: "Success",
+      data: ordersData
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: "An error occurred",
+    });
+  }
+});
+
   
 // get-all-orders----admin
 router.get("/get-all-orders", authenticateToken, async (req, res) => {

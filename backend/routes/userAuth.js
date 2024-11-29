@@ -12,9 +12,10 @@ const authenticateToken = (req, res, next) => {
         if (err) {
             return res.status(403).json({ message: "Token expired. Please sign in again" });
         }
-        req.user = user;
+        req.user = user; 
         next();
     });
 };
 
 module.exports = { authenticateToken };
+
